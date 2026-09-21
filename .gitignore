@@ -427,3 +427,10 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# --- Artefatos de compilação do proj1 (não devem ser versionados) ---
+*.o
+proj1
+proj1.exe
+*.dll
+output_image.png
