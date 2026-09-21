@@ -21,4 +21,17 @@ bool imagem_eh_cinza(SDL_Surface *imagem);
  */
 void converter_para_cinza(SDL_Surface *imagem);
 
+/*
+ * Calcula o histograma de uma imagem em escala de cinza.
+ *
+ * O vetor possui 256 posições:
+ * histograma[0] representa a quantidade de pixels pretos,
+ * histograma[255] representa a quantidade de pixels brancos,
+ * e as demais posições representam os níveis intermediários.
+ */
+void calcular_histograma(
+    SDL_Surface *imagem,
+    Uint32 histograma[256]
+);
+
 #endif

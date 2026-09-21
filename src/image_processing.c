@@ -61,3 +61,45 @@ void converter_para_cinza(SDL_Surface *imagem) {
         }
     }
 }
+
+void calcular_histograma(
+    SDL_Surface *imagem,
+    Uint32 histograma[256]
+) {
+    if (imagem == NULL) {
+        fprintf(stderr, "Erro: imagem nula ao calcular histograma.\n");
+        return;
+    }
+
+    /*
+     * Inicializa todas as posições do histograma com zero.
+     */
+    for (int i = 0; i < 256; i++) {
+        histograma[i] = 0;
+    }
+
+    /*
+     * Percorre todos os pixels da imagem.
+     */
+    for (int y = 0; y < imagem->h; y++) {
+        for (int x = 0; x < imagem->w; x++) {
+
+            Uint8 r, g, b;
+
+            if (!SDL_ReadSurfacePixel(imagem, x, y, &r, &g, &b, NULL)) {
+                fprintf(stderr,
+                        "Erro ao ler pixel (%d, %d): %s\n",
+                        x, y, SDL_GetError());
+                return;
+            }
+
+            /*
+             * A imagem já está em escala de cinza neste ponto,
+             * portanto R, G e B possuem o mesmo valor.
+             *
+             * O canal R é usado como intensidade do pixel.
+             */
+            histograma[r]++;
+        }
+    }
+}

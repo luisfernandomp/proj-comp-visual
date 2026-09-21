@@ -29,47 +29,10 @@ static const struct {
 
 /*
  * TEMPORÁRIO:
- * calcula o histograma pela luminância de cada pixel, apenas para
- * a GUI ter dados reais até o módulo definitivo de histograma ser integrado.
- */
-static bool calcular_histograma_temp(
-    SDL_Surface *imagem,
-    Uint32 histograma[GUI_NIVEIS]
-) {
-    SDL_Surface *rgba = SDL_ConvertSurface(imagem, SDL_PIXELFORMAT_RGBA32);
-
-    if (rgba == NULL) {
-        fprintf(stderr, "Erro ao converter imagem: %s\n", SDL_GetError());
-        return false;
-    }
-
-    for (int i = 0; i < GUI_NIVEIS; ++i) {
-        histograma[i] = 0;
-    }
-
-    for (int y = 0; y < rgba->h; ++y) {
-        const Uint8 *linha =
-            (const Uint8 *)rgba->pixels + y * rgba->pitch;
-
-        for (int x = 0; x < rgba->w; ++x) {
-            const Uint8 *p = linha + x * 4;
-
-            const Uint8 cinza =
-                (Uint8)(0.299 * p[0] +
-                        0.587 * p[1] +
-                        0.114 * p[2]);
-
-            histograma[cinza]++;
-        }
-    }
-
-    SDL_DestroySurface(rgba);
-    return true;
-}
-
-/*
- * TEMPORÁRIO:
  * monta as linhas de análise exibidas na janela secundária.
+ *
+ * Esta função ainda será substituída pelas funções definitivas
+ * de média, desvio padrão e classificação da imagem.
  */
 static void montar_linhas_temp(
     const Uint32 histograma[GUI_NIVEIS],
@@ -219,7 +182,11 @@ int main(int argc, char *argv[]) {
     char linhas[4][64];
     int num_linhas = 0;
 
-    calcular_histograma_temp(
+    /*
+     * Calcula o histograma usando o módulo definitivo
+     * de processamento de imagem.
+     */
+    calcular_histograma(
         imagem,
         histograma
     );
