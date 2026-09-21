@@ -34,4 +34,42 @@ void calcular_histograma(
     Uint32 histograma[256]
 );
 
+/*
+ * Calcula a média de intensidade da imagem a partir
+ * dos valores armazenados no histograma.
+ */
+double calcular_media(
+    const Uint32 histograma[256],
+    Uint64 total_pixels
+);
+
+/*
+ * Calcula o desvio padrão das intensidades da imagem.
+ */
+double calcular_desvio_padrao(
+    const Uint32 histograma[256],
+    Uint64 total_pixels,
+    double media
+);
+
+/*
+ * Classifica a imagem de acordo com sua média
+ * de intensidade.
+ *
+ * media < 85       -> escura
+ * media < 170      -> média
+ * demais valores   -> clara
+ */
+const char *classificar_intensidade(double media);
+
+/*
+ * Classifica o contraste da imagem de acordo
+ * com o desvio padrão.
+ *
+ * desvio < 42.5    -> baixo
+ * desvio < 85.0    -> médio
+ * demais valores   -> alto
+ */
+const char *classificar_contraste(double desvio_padrao);
+
 #endif

@@ -9,11 +9,12 @@
 #include "image_processing.h"
 
 /*
- * Ponto de entrada: carrega a imagem, cria a interface (janela principal +
- * janela secundária com histograma) e executa o loop de eventos.
+ * Ponto de entrada: carrega a imagem, converte para escala de cinza
+ * quando necessário, calcula o histograma e as estatísticas da imagem,
+ * cria a interface e executa o loop de eventos.
  *
- * INTEGRAÇÃO PENDENTE: as funções marcadas com "TEMPORÁRIO" abaixo devem ser
- * substituídas pelos módulos de análise e equalização do histograma.
+ * INTEGRAÇÃO PENDENTE:
+ * a equalização do histograma ainda será integrada posteriormente.
  */
 
 /* Resoluções percorridas pelo botão "Alterar resolução" (a primeira é a inicial). */
@@ -26,65 +27,6 @@ static const struct {
 };
 
 #define NUM_RESOLUCOES (int)(sizeof(RESOLUCOES) / sizeof(RESOLUCOES[0]))
-
-/*
- * TEMPORÁRIO:
- * monta as linhas de análise exibidas na janela secundária.
- *
- * Esta função ainda será substituída pelas funções definitivas
- * de média, desvio padrão e classificação da imagem.
- */
-static void montar_linhas_temp(
-    const Uint32 histograma[GUI_NIVEIS],
-    char linhas[][64],
-    int *num_linhas
-) {
-    double soma = 0.0;
-    double total = 0.0;
-
-    for (int i = 0; i < GUI_NIVEIS; ++i) {
-        soma += (double)i * histograma[i];
-        total += histograma[i];
-    }
-
-    const double media =
-        total > 0 ? soma / total : 0.0;
-
-    double variancia = 0.0;
-
-    for (int i = 0; i < GUI_NIVEIS; ++i) {
-        variancia +=
-            (i - media) *
-            (i - media) *
-            histograma[i];
-    }
-
-    const double desvio =
-        total > 0 ? SDL_sqrt(variancia / total) : 0.0;
-
-    snprintf(
-        linhas[0],
-        64,
-        "Intensidade média: %.2f",
-        media
-    );
-
-    snprintf(
-        linhas[1],
-        64,
-        "Desvio padrão: %.2f",
-        desvio
-    );
-
-    snprintf(
-        linhas[2],
-        64,
-        "Total de pixels: %.0f",
-        total
-    );
-
-    *num_linhas = 3;
-}
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -120,9 +62,8 @@ int main(int argc, char *argv[]) {
     /*
      * Converte a superfície para RGBA32.
      *
-     * Isso garante que o processamento dos pixels seja feito
-     * sobre um formato consistente, evitando problemas com
-     * imagens indexadas/paletas, como imagens de 8 bpp.
+     * Isso garante um formato consistente para todas
+     * as operações de processamento dos pixels.
      */
     SDL_Surface *imagem = SDL_ConvertSurface(
         imagem_carregada,
@@ -146,9 +87,9 @@ int main(int argc, char *argv[]) {
     }
 
     /*
-     * Verifica se a imagem de entrada já está em escala de cinza.
-     * Caso seja colorida, realiza a conversão usando a fórmula
-     * definida no enunciado.
+     * Verifica se a imagem já está em escala de cinza.
+     * Caso seja colorida, realiza a conversão usando
+     * a fórmula definida no enunciado.
      */
     if (imagem_eh_cinza(imagem)) {
         printf("A imagem de entrada esta em escala de cinza.\n");
@@ -160,6 +101,79 @@ int main(int argc, char *argv[]) {
         printf("Imagem convertida para escala de cinza.\n");
     }
 
+    /*
+     * Calcula o histograma da imagem já em escala de cinza.
+     */
+    Uint32 histograma[GUI_NIVEIS];
+
+    calcular_histograma(
+        imagem,
+        histograma
+    );
+
+    /*
+     * Quantidade total de pixels da imagem.
+     */
+    Uint64 total_pixels =
+        (Uint64)imagem->w * (Uint64)imagem->h;
+
+    /*
+     * Calcula as estatísticas da imagem.
+     */
+    double media = calcular_media(
+        histograma,
+        total_pixels
+    );
+
+    double desvio_padrao = calcular_desvio_padrao(
+        histograma,
+        total_pixels,
+        media
+    );
+
+    /*
+     * Classifica a intensidade e o contraste.
+     */
+    const char *classificacao_intensidade =
+        classificar_intensidade(media);
+
+    const char *classificacao_contraste =
+        classificar_contraste(desvio_padrao);
+
+    /*
+     * Monta as informações que serão exibidas
+     * na janela secundária.
+     */
+    char linhas[4][64];
+
+    snprintf(
+        linhas[0],
+        64,
+        "Intensidade media: %.2f (%s)",
+        media,
+        classificacao_intensidade
+    );
+
+    snprintf(
+        linhas[1],
+        64,
+        "Desvio padrao: %.2f (%s)",
+        desvio_padrao,
+        classificacao_contraste
+    );
+
+    snprintf(
+        linhas[2],
+        64,
+        "Total de pixels: %llu",
+        (unsigned long long)total_pixels
+    );
+
+    int num_linhas = 3;
+
+    /*
+     * Inicializa a interface gráfica.
+     */
     Gui gui;
 
     if (!gui_iniciar(
@@ -173,29 +187,10 @@ int main(int argc, char *argv[]) {
     }
 
     /*
-     * A partir daqui, a imagem utilizada pela interface
-     * está em formato RGBA32 e em escala de cinza.
+     * A imagem enviada para a GUI já está
+     * em formato RGBA32 e escala de cinza.
      */
     gui_definir_imagem(&gui, imagem);
-
-    Uint32 histograma[GUI_NIVEIS];
-    char linhas[4][64];
-    int num_linhas = 0;
-
-    /*
-     * Calcula o histograma usando o módulo definitivo
-     * de processamento de imagem.
-     */
-    calcular_histograma(
-        imagem,
-        histograma
-    );
-
-    montar_linhas_temp(
-        histograma,
-        linhas,
-        &num_linhas
-    );
 
     const char *ponteiros_linhas[4] = {
         linhas[0],
@@ -233,19 +228,20 @@ int main(int argc, char *argv[]) {
 
                 /*
                  * TEMPORÁRIO:
-                 * aqui entra a equalização / retorno ao original.
+                 * aqui ainda entra a equalização / retorno ao original.
                  *
-                 * Depois:
-                 * - trocar a imagem
-                 * - gui_definir_imagem()
-                 * - recalcular o histograma
-                 * - atualizar dados.equalizada
+                 * Após integrar:
+                 * - trocar a imagem;
+                 * - atualizar a GUI;
+                 * - recalcular o histograma;
+                 * - recalcular média e desvio padrão;
+                 * - atualizar as classificações.
                  */
                 dados.equalizada =
                     !dados.equalizada;
 
                 printf(
-                    "Botão equalizar: %s\n",
+                    "Botao equalizar: %s\n",
                     dados.equalizada
                         ? "equalizar"
                         : "voltar ao original"
