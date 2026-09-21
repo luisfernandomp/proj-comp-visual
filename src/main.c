@@ -13,8 +13,7 @@
  * janela secundária com histograma) e executa o loop de eventos.
  *
  * INTEGRAÇÃO PENDENTE: as funções marcadas com "TEMPORÁRIO" abaixo devem ser
- * substituídas pelos módulos de escala de cinza, análise e equalização do
- * histograma feitos pelos demais integrantes.
+ * substituídas pelos módulos de análise e equalização do histograma.
  */
 
 /* Resoluções percorridas pelo botão "Alterar resolução" (a primeira é a inicial). */
@@ -31,7 +30,7 @@ static const struct {
 /*
  * TEMPORÁRIO:
  * calcula o histograma pela luminância de cada pixel, apenas para
- * a GUI ter dados reais até o nosso módulo de histograma ser integrado.
+ * a GUI ter dados reais até o módulo definitivo de histograma ser integrado.
  */
 static bool calcular_histograma_temp(
     SDL_Surface *imagem,
@@ -145,25 +144,57 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    SDL_Surface *imagem = carregar_imagem(argv[1]);
+    /*
+     * Carrega a imagem no formato original.
+     */
+    SDL_Surface *imagem_carregada = carregar_imagem(argv[1]);
 
-    if (imagem == NULL) {
+    if (imagem_carregada == NULL) {
         SDL_Quit();
         return 1;
     }
 
     /*
-     * TESTE DO MÓDULO DE PROCESSAMENTO:
-     * verifica se a imagem carregada já está em escala de cinza.
+     * Converte a superfície para RGBA32.
+     *
+     * Isso garante que o processamento dos pixels seja feito
+     * sobre um formato consistente, evitando problemas com
+     * imagens indexadas/paletas, como imagens de 8 bpp.
+     */
+    SDL_Surface *imagem = SDL_ConvertSurface(
+        imagem_carregada,
+        SDL_PIXELFORMAT_RGBA32
+    );
+
+    /*
+     * A superfície original não será mais utilizada.
+     */
+    SDL_DestroySurface(imagem_carregada);
+
+    if (imagem == NULL) {
+        fprintf(
+            stderr,
+            "Erro ao converter formato da imagem: %s\n",
+            SDL_GetError()
+        );
+
+        SDL_Quit();
+        return 1;
+    }
+
+    /*
+     * Verifica se a imagem de entrada já está em escala de cinza.
+     * Caso seja colorida, realiza a conversão usando a fórmula
+     * definida no enunciado.
      */
     if (imagem_eh_cinza(imagem)) {
-        printf(
-            "A imagem de entrada esta em escala de cinza.\n"
-        );
+        printf("A imagem de entrada esta em escala de cinza.\n");
     } else {
-        printf(
-            "A imagem de entrada e colorida.\n"
-        );
+        printf("A imagem de entrada e colorida.\n");
+
+        converter_para_cinza(imagem);
+
+        printf("Imagem convertida para escala de cinza.\n");
     }
 
     Gui gui;
@@ -178,6 +209,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    /*
+     * A partir daqui, a imagem utilizada pela interface
+     * está em formato RGBA32 e em escala de cinza.
+     */
     gui_definir_imagem(&gui, imagem);
 
     Uint32 histograma[GUI_NIVEIS];
