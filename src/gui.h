@@ -39,6 +39,7 @@ typedef struct {
     SDL_FRect   rect;
     const char *rotulo;
     bool        hover;   /* mouse sobre o botão (feedback visual) */
+    bool        pressionado;
 } GuiBotao;
 
 typedef struct {

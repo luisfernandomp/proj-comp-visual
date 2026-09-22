@@ -35,6 +35,7 @@ static const SDL_Color COR_TEXTO            = { 235, 235, 235, 255 };
 static const SDL_Color COR_TEXTO_SUAVE      = { 160, 165, 180, 255 };
 static const SDL_Color COR_BOTAO            = {  58,  63,  78, 255 };
 static const SDL_Color COR_BOTAO_HOVER      = {  84,  92, 116, 255 };
+static const SDL_Color COR_BOTAO_PRESSIONADO = { 42, 46, 58, 255 };
 static const SDL_Color COR_BOTAO_BORDA      = { 120, 130, 160, 255 };
 
 /* ------------------------------------------------------------------------- */
@@ -136,7 +137,13 @@ static bool botao_contem(const GuiBotao *botao, float x, float y) {
 static void botao_desenhar(Gui *gui, const GuiBotao *botao) {
     SDL_Renderer *render = gui->render_secundario;
 
-    definir_cor(render, botao->hover ? COR_BOTAO_HOVER : COR_BOTAO);
+    if (botao->pressionado) {
+        definir_cor(render, COR_BOTAO_PRESSIONADO);
+    } else if (botao->hover) {
+        definir_cor(render, COR_BOTAO_HOVER);
+    } else {
+        definir_cor(render, COR_BOTAO);
+    }
     SDL_RenderFillRect(render, &botao->rect);
     definir_cor(render, COR_BOTAO_BORDA);
     SDL_RenderRect(render, &botao->rect);
@@ -309,15 +316,65 @@ GuiAcao gui_processar_evento(Gui *gui, const SDL_Event *evento) {
         if (evento->window.windowID == id_secundaria) {
             gui->botao_equalizar.hover = false;
             gui->botao_resolucao.hover = false;
+            gui->botao_equalizar.pressionado = false;
+            gui->botao_resolucao.pressionado = false;
         }
         break;
 
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        if (evento->button.windowID == id_secundaria && evento->button.button == SDL_BUTTON_LEFT) {
-            if (botao_contem(&gui->botao_equalizar, evento->button.x, evento->button.y))
+        if (
+            evento->button.windowID == id_secundaria &&
+            evento->button.button == SDL_BUTTON_LEFT
+        ) {
+
+            gui->botao_equalizar.pressionado =
+                botao_contem(
+                    &gui->botao_equalizar,
+                    evento->button.x,
+                    evento->button.y
+                );
+
+            gui->botao_resolucao.pressionado =
+                botao_contem(
+                    &gui->botao_resolucao,
+                    evento->button.x,
+                    evento->button.y
+                );
+        }
+        break;
+    
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        if (
+            evento->button.windowID == id_secundaria &&
+            evento->button.button == SDL_BUTTON_LEFT
+        ) {
+
+            bool clicou_equalizar =
+                gui->botao_equalizar.pressionado &&
+                botao_contem(
+                    &gui->botao_equalizar,
+                    evento->button.x,
+                    evento->button.y
+                );
+
+            bool clicou_resolucao =
+                gui->botao_resolucao.pressionado &&
+                botao_contem(
+                    &gui->botao_resolucao,
+                    evento->button.x,
+                    evento->button.y
+                );
+
+            gui->botao_equalizar.pressionado = false;
+            gui->botao_resolucao.pressionado = false;
+
+            if (clicou_equalizar) {
                 return GUI_ACAO_EQUALIZAR;
-            if (botao_contem(&gui->botao_resolucao, evento->button.x, evento->button.y))
+            }
+
+            if (clicou_resolucao) {
                 return GUI_ACAO_ALTERAR_RESOLUCAO;
+            }
         }
         break;
     }
