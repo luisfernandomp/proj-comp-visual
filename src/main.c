@@ -12,21 +12,7 @@
  * Ponto de entrada: carrega a imagem, converte para escala de cinza
  * quando necessário, calcula o histograma e as estatísticas da imagem,
  * cria a interface e executa o loop de eventos.
- *
- * INTEGRAÇÃO PENDENTE:
- * a equalização do histograma ainda será integrada posteriormente.
  */
-
-/* Resoluções percorridas pelo botão "Alterar resolução" (a primeira é a inicial). */
-static const struct {
-    int w, h;
-} RESOLUCOES[] = {
-    { GUI_PRINCIPAL_LARGURA, GUI_PRINCIPAL_ALTURA },
-    { 800, 600 },
-    { 1280, 960 },
-};
-
-#define NUM_RESOLUCOES (int)(sizeof(RESOLUCOES) / sizeof(RESOLUCOES[0]))
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -229,9 +215,9 @@ int main(int argc, char *argv[]) {
         .linhas = ponteiros_linhas,
         .num_linhas = num_linhas,
         .equalizada = false,
+        .resolucao_original = false,
     };
 
-    int resolucao_atual = 0;
     bool executando = true;
     SDL_Event evento;
 
@@ -367,18 +353,47 @@ int main(int argc, char *argv[]) {
 
             case GUI_ACAO_ALTERAR_RESOLUCAO:
 
-                resolucao_atual =
-                    (resolucao_atual + 1)
-                    % NUM_RESOLUCOES;
-
-                gui_definir_resolucao(
-                    &gui,
-                    RESOLUCOES[resolucao_atual].w,
-                    RESOLUCOES[resolucao_atual].h
-                );
-
+                if (dados.resolucao_original) {
+                
+                    /*
+                     * Está na resolução original.
+                     * Volta para 1024x768.
+                     */
+                    if (gui_definir_resolucao(
+                            &gui,
+                            GUI_PRINCIPAL_LARGURA,
+                            GUI_PRINCIPAL_ALTURA
+                        )) {
+                        
+                        dados.resolucao_original = false;
+                        
+                        printf("Resolucao alterada para 1024x768.\n");
+                    }
+                
+                } else {
+                
+                    /*
+                     * Está em 1024x768.
+                     * Passa para a resolução original da imagem.
+                     */
+                    if (gui_definir_resolucao(
+                            &gui,
+                            imagem_original->w,
+                            imagem_original->h
+                        )) {
+                        
+                        dados.resolucao_original = true;
+                        
+                        printf(
+                            "Resolucao alterada para %dx%d.\n",
+                            imagem_original->w,
+                            imagem_original->h
+                        );
+                    }
+                }
+            
                 break;
-
+            
             case GUI_ACAO_SALVAR:
                 salvar_imagem(imagem);
                 break;
@@ -395,7 +410,7 @@ int main(int argc, char *argv[]) {
     }
 
     gui_encerrar(&gui);
-    
+
     SDL_DestroySurface(imagem_original);
     SDL_DestroySurface(imagem);
 

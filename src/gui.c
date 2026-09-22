@@ -218,17 +218,70 @@ bool gui_definir_imagem(Gui *gui, SDL_Surface *imagem) {
     return true;
 }
 
-bool gui_definir_resolucao(Gui *gui, int largura, int altura) {
+bool gui_definir_resolucao(
+    Gui *gui,
+    int largura,
+    int altura
+) {
     SDL_DisplayID monitor = SDL_GetPrimaryDisplay();
+    SDL_Rect limites_monitor;
 
-    if (!SDL_SetWindowSize(gui->janela_principal, largura, altura)) {
-        fprintf(stderr, "Erro ao alterar a resolução da janela: %s\n", SDL_GetError());
+    if (!SDL_GetDisplayBounds(
+            monitor,
+            &limites_monitor
+        )) {
+
+        fprintf(
+            stderr,
+            "Erro ao obter resolucao do monitor: %s\n",
+            SDL_GetError()
+        );
+
         return false;
     }
-    SDL_SetWindowPosition(gui->janela_principal,
-                          SDL_WINDOWPOS_CENTERED_DISPLAY(monitor),
-                          SDL_WINDOWPOS_CENTERED_DISPLAY(monitor));
+
+    if (!SDL_SetWindowSize(
+            gui->janela_principal,
+            largura,
+            altura
+        )) {
+
+        fprintf(
+            stderr,
+            "Erro ao alterar a resolucao da janela: %s\n",
+            SDL_GetError()
+        );
+
+        return false;
+    }
+
+    /*
+     * Se a janela não cabe no monitor,
+     * posiciona o canto superior esquerdo em (0,0).
+     * Caso contrário, centraliza.
+     */
+    if (
+        largura > limites_monitor.w ||
+        altura > limites_monitor.h
+    ) {
+
+        SDL_SetWindowPosition(
+            gui->janela_principal,
+            0,
+            0
+        );
+
+    } else {
+
+        SDL_SetWindowPosition(
+            gui->janela_principal,
+            SDL_WINDOWPOS_CENTERED_DISPLAY(monitor),
+            SDL_WINDOWPOS_CENTERED_DISPLAY(monitor)
+        );
+    }
+
     SDL_SyncWindow(gui->janela_principal);
+
     return true;
 }
 
@@ -395,6 +448,7 @@ void gui_desenhar_secundaria(Gui *gui, const GuiDadosSecundaria *dados) {
                                MARGEM, INFO_Y + i * INFO_ESPACO, COR_TEXTO);
         }
         gui->botao_equalizar.rotulo = dados->equalizada ? "Voltar ao original" : "Equalizar";
+        gui->botao_resolucao.rotulo = dados->resolucao_original ? "1024x768" : "Resolucao original";
     }
 
     botao_desenhar(gui, &gui->botao_equalizar);
