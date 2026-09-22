@@ -72,4 +72,10 @@ const char *classificar_intensidade(double media);
  */
 const char *classificar_contraste(double desvio_padrao);
 
+/*
+ * Equaliza o histograma de uma imagem em escala de cinza,
+ * redistribuindo os níveis de intensidade entre 0 e 255.
+ */
+bool equalizar_histograma(SDL_Surface *imagem);
+
 #endif

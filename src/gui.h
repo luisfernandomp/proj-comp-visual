@@ -39,6 +39,7 @@ typedef struct {
     SDL_FRect   rect;
     const char *rotulo;
     bool        hover;   /* mouse sobre o botão (feedback visual) */
+    bool        pressionado;
 } GuiBotao;
 
 typedef struct {
@@ -67,6 +68,7 @@ typedef struct {
     const char *const  *linhas;       /* linhas de texto de análise (média, desvio etc.) */
     int                 num_linhas;
     bool                equalizada;   /* true: botão mostra "Voltar ao original" */
+    bool                resolucao_original;
 } GuiDadosSecundaria;
 
 /* Cria as duas janelas, os renderizadores e carrega a fonte.

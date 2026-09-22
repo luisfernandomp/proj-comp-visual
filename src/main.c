@@ -12,21 +12,7 @@
  * Ponto de entrada: carrega a imagem, converte para escala de cinza
  * quando necessário, calcula o histograma e as estatísticas da imagem,
  * cria a interface e executa o loop de eventos.
- *
- * INTEGRAÇÃO PENDENTE:
- * a equalização do histograma ainda será integrada posteriormente.
  */
-
-/* Resoluções percorridas pelo botão "Alterar resolução" (a primeira é a inicial). */
-static const struct {
-    int w, h;
-} RESOLUCOES[] = {
-    { GUI_PRINCIPAL_LARGURA, GUI_PRINCIPAL_ALTURA },
-    { 800, 600 },
-    { 1280, 960 },
-};
-
-#define NUM_RESOLUCOES (int)(sizeof(RESOLUCOES) / sizeof(RESOLUCOES[0]))
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -99,6 +85,29 @@ int main(int argc, char *argv[]) {
         converter_para_cinza(imagem);
 
         printf("Imagem convertida para escala de cinza.\n");
+    }
+
+    /*
+    * Mantém uma cópia da imagem original em escala de cinza.
+    * Essa cópia será usada para restaurar a imagem sem
+    * precisar recarregar o arquivo.
+    */
+    SDL_Surface *imagem_original = SDL_ConvertSurface(
+        imagem,
+        SDL_PIXELFORMAT_RGBA32
+    );
+
+    if (imagem_original == NULL) {
+        fprintf(
+            stderr,
+            "Erro ao criar copia da imagem original: %s\n",
+            SDL_GetError()
+        );
+
+        SDL_DestroySurface(imagem);
+        SDL_Quit();
+
+        return 1;
     }
 
     /*
@@ -181,8 +190,10 @@ int main(int argc, char *argv[]) {
             "Processamento de Imagens - Histograma"
         )) {
 
+        SDL_DestroySurface(imagem_original);
         SDL_DestroySurface(imagem);
         SDL_Quit();
+        
         return 1;
     }
 
@@ -204,9 +215,9 @@ int main(int argc, char *argv[]) {
         .linhas = ponteiros_linhas,
         .num_linhas = num_linhas,
         .equalizada = false,
+        .resolucao_original = false,
     };
 
-    int resolucao_atual = 0;
     bool executando = true;
     SDL_Event evento;
 
@@ -224,45 +235,165 @@ int main(int argc, char *argv[]) {
                 executando = false;
                 break;
 
-            case GUI_ACAO_EQUALIZAR:
+            case GUI_ACAO_EQUALIZAR: {
+
+                bool imagem_atualizada = false;
 
                 /*
-                 * TEMPORÁRIO:
-                 * aqui ainda entra a equalização / retorno ao original.
-                 *
-                 * Após integrar:
-                 * - trocar a imagem;
-                 * - atualizar a GUI;
-                 * - recalcular o histograma;
-                 * - recalcular média e desvio padrão;
-                 * - atualizar as classificações.
+                 * Se a imagem ainda não está equalizada,
+                 * aplica a equalização.
                  */
-                dados.equalizada =
-                    !dados.equalizada;
-
-                printf(
-                    "Botao equalizar: %s\n",
-                    dados.equalizada
-                        ? "equalizar"
-                        : "voltar ao original"
-                );
-
+                if (!dados.equalizada) {
+                
+                    if (!equalizar_histograma(imagem)) {
+                        fprintf(stderr, "Erro ao equalizar a imagem.\n");
+                        break;
+                    }
+                
+                    dados.equalizada = true;
+                    imagem_atualizada = true;
+                
+                    printf("Imagem equalizada.\n");
+                
+                } else {
+                
+                    /*
+                     * Cria novamente a imagem atual usando
+                     * a cópia original em escala de cinza.
+                     */
+                    SDL_Surface *imagem_restaurada =
+                        SDL_ConvertSurface(
+                            imagem_original,
+                            SDL_PIXELFORMAT_RGBA32
+                        );
+                    
+                    if (imagem_restaurada == NULL) {
+                        fprintf(
+                            stderr,
+                            "Erro ao restaurar imagem original: %s\n",
+                            SDL_GetError()
+                        );
+                    
+                        break;
+                    }
+                
+                    SDL_DestroySurface(imagem);
+                
+                    imagem = imagem_restaurada;
+                
+                    dados.equalizada = false;
+                    imagem_atualizada = true;
+                
+                    printf("Imagem original restaurada.\n");
+                }
+            
+                /*
+                 * Atualiza tudo que depende da imagem atual.
+                 */
+                if (imagem_atualizada) {
+                
+                    gui_definir_imagem(
+                        &gui,
+                        imagem
+                    );
+                
+                    calcular_histograma(
+                        imagem,
+                        histograma
+                    );
+                
+                    total_pixels =
+                        (Uint64)imagem->w *
+                        (Uint64)imagem->h;
+                
+                    media = calcular_media(
+                        histograma,
+                        total_pixels
+                    );
+                
+                    desvio_padrao =
+                        calcular_desvio_padrao(
+                            histograma,
+                            total_pixels,
+                            media
+                        );
+                    
+                    classificacao_intensidade =
+                        classificar_intensidade(media);
+                    
+                    classificacao_contraste =
+                        classificar_contraste(desvio_padrao);
+                    
+                    snprintf(
+                        linhas[0],
+                        64,
+                        "Intensidade media: %.2f (%s)",
+                        media,
+                        classificacao_intensidade
+                    );
+                
+                    snprintf(
+                        linhas[1],
+                        64,
+                        "Desvio padrao: %.2f (%s)",
+                        desvio_padrao,
+                        classificacao_contraste
+                    );
+                
+                    snprintf(
+                        linhas[2],
+                        64,
+                        "Total de pixels: %llu",
+                        (unsigned long long)total_pixels
+                    );
+                }
+            
                 break;
+            }
 
             case GUI_ACAO_ALTERAR_RESOLUCAO:
 
-                resolucao_atual =
-                    (resolucao_atual + 1)
-                    % NUM_RESOLUCOES;
-
-                gui_definir_resolucao(
-                    &gui,
-                    RESOLUCOES[resolucao_atual].w,
-                    RESOLUCOES[resolucao_atual].h
-                );
-
+                if (dados.resolucao_original) {
+                
+                    /*
+                     * Está na resolução original.
+                     * Volta para 1024x768.
+                     */
+                    if (gui_definir_resolucao(
+                            &gui,
+                            GUI_PRINCIPAL_LARGURA,
+                            GUI_PRINCIPAL_ALTURA
+                        )) {
+                        
+                        dados.resolucao_original = false;
+                        
+                        printf("Resolucao alterada para 1024x768.\n");
+                    }
+                
+                } else {
+                
+                    /*
+                     * Está em 1024x768.
+                     * Passa para a resolução original da imagem.
+                     */
+                    if (gui_definir_resolucao(
+                            &gui,
+                            imagem_original->w,
+                            imagem_original->h
+                        )) {
+                        
+                        dados.resolucao_original = true;
+                        
+                        printf(
+                            "Resolucao alterada para %dx%d.\n",
+                            imagem_original->w,
+                            imagem_original->h
+                        );
+                    }
+                }
+            
                 break;
-
+            
             case GUI_ACAO_SALVAR:
                 salvar_imagem(imagem);
                 break;
@@ -280,6 +411,7 @@ int main(int argc, char *argv[]) {
 
     gui_encerrar(&gui);
 
+    SDL_DestroySurface(imagem_original);
     SDL_DestroySurface(imagem);
 
     SDL_Quit();
